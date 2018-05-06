@@ -1,0 +1,339 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{18279E34-C348-4755-880F-749D6B74D713}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>PyExcelLibrary</RootNamespace>
+    <AssemblyName>PyExcelLibrary</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>..\..\..\..\..\..\..\..\..\Program Files\Microsoft Office\root\vfs\ProgramFilesX86\Microsoft Office\Office16\DCF\Microsoft.Office.Interop.Excel.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Vbe.Interop, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>..\..\..\..\..\..\..\..\..\Program Files\Microsoft Office\root\vfs\ProgramFilesX86\Microsoft Office\Office16\DCF\Microsoft.Vbe.Interop.dll</HintPath>
+    </Reference>
+    <Reference Include="office, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>..\..\..\..\..\..\..\..\..\Program Files\Microsoft Office\root\vfs\ProgramFilesX86\Microsoft Office\Office16\DCF\office.dll</HintPath>
+    </Reference>
+    <Reference Include="Python.Runtime">
+      <HintPath>..\..\..\..\..\..\..\..\..\Program Files\Python36\Lib\site-packages\Python.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Excel.cs" />
+    <Compile Include="ExcelAppCollection.cs" />
+    <Compile Include="excel\Action.cs" />
+    <Compile Include="excel\Actions.cs" />
+    <Compile Include="excel\AddIn.cs" />
+    <Compile Include="excel\AddIns.cs" />
+    <Compile Include="excel\AddIns2.cs" />
+    <Compile Include="excel\Adjustments.cs" />
+    <Compile Include="excel\AllowEditRange.cs" />
+    <Compile Include="excel\AllowEditRanges.cs" />
+    <Compile Include="excel\Application.cs" />
+    <Compile Include="excel\Areas.cs" />
+    <Compile Include="excel\Author.cs" />
+    <Compile Include="excel\AutoCorrect.cs" />
+    <Compile Include="excel\AutoFilter.cs" />
+    <Compile Include="excel\AutoRecover.cs" />
+    <Compile Include="excel\Border.cs" />
+    <Compile Include="excel\Borders.cs" />
+    <Compile Include="excel\CalculatedFields.cs" />
+    <Compile Include="excel\CalculatedItems.cs" />
+    <Compile Include="excel\CalculatedMember.cs" />
+    <Compile Include="excel\CalculatedMembers.cs" />
+    <Compile Include="excel\CalloutFormat.cs" />
+    <Compile Include="excel\CellFormat.cs" />
+    <Compile Include="excel\Characters.cs" />
+    <Compile Include="excel\Chart.cs" />
+    <Compile Include="excel\ChartArea.cs" />
+    <Compile Include="excel\ChartColorFormat.cs" />
+    <Compile Include="excel\ChartFillFormat.cs" />
+    <Compile Include="excel\ChartFormat.cs" />
+    <Compile Include="excel\ChartGroup.cs" />
+    <Compile Include="excel\ChartTitle.cs" />
+    <Compile Include="excel\ColorFormat.cs" />
+    <Compile Include="excel\Comment.cs" />
+    <Compile Include="excel\Comments.cs" />
+    <Compile Include="excel\CommentsThreaded.cs" />
+    <Compile Include="excel\CommentThreaded.cs" />
+    <Compile Include="excel\Connections.cs" />
+    <Compile Include="excel\ConnectorFormat.cs" />
+    <Compile Include="excel\ControlFormat.cs" />
+    <Compile Include="excel\Corners.cs" />
+    <Compile Include="excel\CubeField.cs" />
+    <Compile Include="excel\CubeFields.cs" />
+    <Compile Include="excel\CustomProperties.cs" />
+    <Compile Include="excel\CustomProperty.cs" />
+    <Compile Include="excel\CustomView.cs" />
+    <Compile Include="excel\CustomViews.cs" />
+    <Compile Include="excel\DataFeedConnection.cs" />
+    <Compile Include="excel\DataTable.cs" />
+    <Compile Include="excel\DefaultPivotTableLayoutOptions.cs" />
+    <Compile Include="excel\DefaultWebOptions.cs" />
+    <Compile Include="excel\Diagram.cs" />
+    <Compile Include="excel\DiagramNode.cs" />
+    <Compile Include="excel\DiagramNodeChildren.cs" />
+    <Compile Include="excel\DiagramNodes.cs" />
+    <Compile Include="excel\Dialog.cs" />
+    <Compile Include="excel\DialogFrame.cs" />
+    <Compile Include="excel\Dialogs.cs" />
+    <Compile Include="excel\DialogSheet.cs" />
+    <Compile Include="excel\DisplayFormat.cs" />
+    <Compile Include="excel\DownBars.cs" />
+    <Compile Include="excel\DropLines.cs" />
+    <Compile Include="excel\Error.cs" />
+    <Compile Include="excel\ErrorCheckingOptions.cs" />
+    <Compile Include="excel\Errors.cs" />
+    <Compile Include="excel\FileExportConverter.cs" />
+    <Compile Include="excel\FileExportConverters.cs" />
+    <Compile Include="excel\FillFormat.cs" />
+    <Compile Include="excel\Filter.cs" />
+    <Compile Include="excel\Filters.cs" />
+    <Compile Include="excel\Floor.cs" />
+    <Compile Include="excel\Font.cs" />
+    <Compile Include="excel\FormatColor.cs" />
+    <Compile Include="excel\FormatConditions.cs" />
+    <Compile Include="excel\FreeformBuilder.cs" />
+    <Compile Include="excel\Graphic.cs" />
+    <Compile Include="excel\GroupShapes.cs" />
+    <Compile Include="excel\HeaderFooter.cs" />
+    <Compile Include="excel\HiLoLines.cs" />
+    <Compile Include="excel\HPageBreak.cs" />
+    <Compile Include="excel\HPageBreaks.cs" />
+    <Compile Include="excel\Hyperlink.cs" />
+    <Compile Include="excel\Hyperlinks.cs" />
+    <Compile Include="excel\Icon.cs" />
+    <Compile Include="excel\IconSet.cs" />
+    <Compile Include="excel\IconSets.cs" />
+    <Compile Include="excel\Interior.cs" />
+    <Compile Include="excel\Legend.cs" />
+    <Compile Include="excel\LineFormat.cs" />
+    <Compile Include="excel\LinkFormat.cs" />
+    <Compile Include="excel\ListColumn.cs" />
+    <Compile Include="excel\ListColumns.cs" />
+    <Compile Include="excel\ListDataFormat.cs" />
+    <Compile Include="excel\ListObject.cs" />
+    <Compile Include="excel\ListObjects.cs" />
+    <Compile Include="excel\ListRow.cs" />
+    <Compile Include="excel\ListRows.cs" />
+    <Compile Include="excel\Mailer.cs" />
+    <Compile Include="excel\Menu.cs" />
+    <Compile Include="excel\MenuBar.cs" />
+    <Compile Include="excel\MenuBars.cs" />
+    <Compile Include="excel\MenuItem.cs" />
+    <Compile Include="excel\MenuItems.cs" />
+    <Compile Include="excel\Menus.cs" />
+    <Compile Include="excel\Model.cs" />
+    <Compile Include="excel\Model3DFormat.cs" />
+    <Compile Include="excel\ModelConnection.cs" />
+    <Compile Include="excel\ModelFormatBoolean.cs" />
+    <Compile Include="excel\ModelFormatCurrency.cs" />
+    <Compile Include="excel\ModelFormatDate.cs" />
+    <Compile Include="excel\ModelFormatDecimalNumber.cs" />
+    <Compile Include="excel\ModelFormatGeneral.cs" />
+    <Compile Include="excel\ModelFormatPercentageNumber.cs" />
+    <Compile Include="excel\ModelFormatScientificNumber.cs" />
+    <Compile Include="excel\ModelFormatWholeNumber.cs" />
+    <Compile Include="excel\ModelMeasure.cs" />
+    <Compile Include="excel\ModelMeasures.cs" />
+    <Compile Include="excel\ModelRelationship.cs" />
+    <Compile Include="excel\ModelRelationships.cs" />
+    <Compile Include="excel\ModelTable.cs" />
+    <Compile Include="excel\ModelTableColumn.cs" />
+    <Compile Include="excel\ModelTableColumns.cs" />
+    <Compile Include="excel\ModelTables.cs" />
+    <Compile Include="excel\Module.cs" />
+    <Compile Include="excel\Modules.cs" />
+    <Compile Include="excel\MultiThreadedCalculation.cs" />
+    <Compile Include="excel\Name.cs" />
+    <Compile Include="excel\Names.cs" />
+    <Compile Include="excel\ODBCConnection.cs" />
+    <Compile Include="excel\ODBCError.cs" />
+    <Compile Include="excel\ODBCErrors.cs" />
+    <Compile Include="excel\OLEDBConnection.cs" />
+    <Compile Include="excel\OLEDBError.cs" />
+    <Compile Include="excel\OLEDBErrors.cs" />
+    <Compile Include="excel\OLEFormat.cs" />
+    <Compile Include="excel\Outline.cs" />
+    <Compile Include="excel\Page.cs" />
+    <Compile Include="excel\Pages.cs" />
+    <Compile Include="excel\PageSetup.cs" />
+    <Compile Include="excel\Pane.cs" />
+    <Compile Include="excel\Panes.cs" />
+    <Compile Include="excel\Parameter.cs" />
+    <Compile Include="excel\Parameters.cs" />
+    <Compile Include="excel\Phonetic.cs" />
+    <Compile Include="excel\Phonetics.cs" />
+    <Compile Include="excel\PictureFormat.cs" />
+    <Compile Include="excel\PivotAxis.cs" />
+    <Compile Include="excel\PivotCache.cs" />
+    <Compile Include="excel\PivotCaches.cs" />
+    <Compile Include="excel\PivotCell.cs" />
+    <Compile Include="excel\PivotField.cs" />
+    <Compile Include="excel\PivotFields.cs" />
+    <Compile Include="excel\PivotFilter.cs" />
+    <Compile Include="excel\PivotFilters.cs" />
+    <Compile Include="excel\PivotFormula.cs" />
+    <Compile Include="excel\PivotFormulas.cs" />
+    <Compile Include="excel\PivotItem.cs" />
+    <Compile Include="excel\PivotItemList.cs" />
+    <Compile Include="excel\PivotLayout.cs" />
+    <Compile Include="excel\PivotLine.cs" />
+    <Compile Include="excel\PivotLineCells.cs" />
+    <Compile Include="excel\PivotLines.cs" />
+    <Compile Include="excel\PivotTable.cs" />
+    <Compile Include="excel\PivotTableChangeList.cs" />
+    <Compile Include="excel\PivotValueCell.cs" />
+    <Compile Include="excel\PlotArea.cs" />
+    <Compile Include="excel\ProtectedViewWindow.cs" />
+    <Compile Include="excel\ProtectedViewWindows.cs" />
+    <Compile Include="excel\Protection.cs" />
+    <Compile Include="excel\PublishedDoc.cs" />
+    <Compile Include="excel\PublishedDocs.cs" />
+    <Compile Include="excel\PublishObject.cs" />
+    <Compile Include="excel\PublishObjects.cs" />
+    <Compile Include="excel\Queries.cs" />
+    <Compile Include="excel\QueryTable.cs" />
+    <Compile Include="excel\QueryTables.cs" />
+    <Compile Include="excel\QuickAnalysis.cs" />
+    <Compile Include="excel\Range.cs" />
+    <Compile Include="excel\Ranges.cs" />
+    <Compile Include="excel\RecentFile.cs" />
+    <Compile Include="excel\RecentFiles.cs" />
+    <Compile Include="excel\Research.cs" />
+    <Compile Include="excel\RoutingSlip.cs" />
+    <Compile Include="excel\RTD.cs" />
+    <Compile Include="excel\SeriesLines.cs" />
+    <Compile Include="excel\ServerViewableItems.cs" />
+    <Compile Include="excel\ShadowFormat.cs" />
+    <Compile Include="excel\Shape.cs" />
+    <Compile Include="excel\ShapeNode.cs" />
+    <Compile Include="excel\ShapeNodes.cs" />
+    <Compile Include="excel\ShapeRange.cs" />
+    <Compile Include="excel\Shapes.cs" />
+    <Compile Include="excel\Sheets.cs" />
+    <Compile Include="excel\SheetViews.cs" />
+    <Compile Include="excel\Slicer.cs" />
+    <Compile Include="excel\SlicerCache.cs" />
+    <Compile Include="excel\SlicerCacheLevel.cs" />
+    <Compile Include="excel\SlicerCacheLevels.cs" />
+    <Compile Include="excel\SlicerCaches.cs" />
+    <Compile Include="excel\SlicerItem.cs" />
+    <Compile Include="excel\SlicerItems.cs" />
+    <Compile Include="excel\SlicerPivotTables.cs" />
+    <Compile Include="excel\Slicers.cs" />
+    <Compile Include="excel\SmartTag.cs" />
+    <Compile Include="excel\SmartTagAction.cs" />
+    <Compile Include="excel\SmartTagActions.cs" />
+    <Compile Include="excel\SmartTagOptions.cs" />
+    <Compile Include="excel\SmartTagRecognizer.cs" />
+    <Compile Include="excel\SmartTagRecognizers.cs" />
+    <Compile Include="excel\SmartTags.cs" />
+    <Compile Include="excel\Sort.cs" />
+    <Compile Include="excel\SortField.cs" />
+    <Compile Include="excel\SortFields.cs" />
+    <Compile Include="excel\SoundNote.cs" />
+    <Compile Include="excel\SparkAxes.cs" />
+    <Compile Include="excel\SparkColor.cs" />
+    <Compile Include="excel\SparkHorizontalAxis.cs" />
+    <Compile Include="excel\Sparkline.cs" />
+    <Compile Include="excel\SparklineGroup.cs" />
+    <Compile Include="excel\SparklineGroups.cs" />
+    <Compile Include="excel\SparkPoints.cs" />
+    <Compile Include="excel\SparkVerticalAxis.cs" />
+    <Compile Include="excel\Speech.cs" />
+    <Compile Include="excel\SpellingOptions.cs" />
+    <Compile Include="excel\Style.cs" />
+    <Compile Include="excel\Styles.cs" />
+    <Compile Include="excel\Tab.cs" />
+    <Compile Include="excel\TableObject.cs" />
+    <Compile Include="excel\TableStyle.cs" />
+    <Compile Include="excel\TableStyleElement.cs" />
+    <Compile Include="excel\TableStyleElements.cs" />
+    <Compile Include="excel\TableStyles.cs" />
+    <Compile Include="excel\TextConnection.cs" />
+    <Compile Include="excel\TextEffectFormat.cs" />
+    <Compile Include="excel\TextFrame.cs" />
+    <Compile Include="excel\TextFrame2.cs" />
+    <Compile Include="excel\ThreeDFormat.cs" />
+    <Compile Include="excel\TickLabels.cs" />
+    <Compile Include="excel\TimelineState.cs" />
+    <Compile Include="excel\TimelineViewState.cs" />
+    <Compile Include="excel\Toolbar.cs" />
+    <Compile Include="excel\ToolbarButton.cs" />
+    <Compile Include="excel\ToolbarButtons.cs" />
+    <Compile Include="excel\Toolbars.cs" />
+    <Compile Include="excel\TreeviewControl.cs" />
+    <Compile Include="excel\UpBars.cs" />
+    <Compile Include="excel\UsedObjects.cs" />
+    <Compile Include="excel\UserAccess.cs" />
+    <Compile Include="excel\UserAccessList.cs" />
+    <Compile Include="excel\Validation.cs" />
+    <Compile Include="excel\ValueChange.cs" />
+    <Compile Include="excel\VPageBreak.cs" />
+    <Compile Include="excel\VPageBreaks.cs" />
+    <Compile Include="excel\Walls.cs" />
+    <Compile Include="excel\Watch.cs" />
+    <Compile Include="excel\Watches.cs" />
+    <Compile Include="excel\WebOptions.cs" />
+    <Compile Include="excel\Window.cs" />
+    <Compile Include="excel\Windows.cs" />
+    <Compile Include="excel\Workbook.cs" />
+    <Compile Include="excel\WorkbookConnection.cs" />
+    <Compile Include="excel\WorkbookQuery.cs" />
+    <Compile Include="excel\Workbooks.cs" />
+    <Compile Include="excel\Worksheet.cs" />
+    <Compile Include="excel\WorksheetDataConnection.cs" />
+    <Compile Include="excel\WorksheetFunction.cs" />
+    <Compile Include="excel\XmlDataBinding.cs" />
+    <Compile Include="excel\XmlMap.cs" />
+    <Compile Include="excel\XmlMaps.cs" />
+    <Compile Include="excel\XmlNamespace.cs" />
+    <Compile Include="excel\XmlNamespaces.cs" />
+    <Compile Include="excel\XmlSchema.cs" />
+    <Compile Include="excel\XmlSchemas.cs" />
+    <Compile Include="excel\XPath.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
