@@ -30,6 +30,8 @@ RE_PROPERTY = re.compile(r"^(\S+?) "  # type
                          r"$"  # semi
                          )
 
+RE_BRAKET = re.compile(r"^([{}])$")
+
 CS_DEFAULT_TYPES = frozenset({
     "object",
     "string",
@@ -52,6 +54,7 @@ CS_KEYWORDS = CS_DEFAULT_TYPES | frozenset({
     "default",
 })
 
+
 @dataclass
 class Argument:
     type: str
@@ -68,6 +71,7 @@ class Function:
     args: Tuple[Argument]
     py_args: Tuple[Argument] = None
 
+
 @dataclass
 class Property:
     type: str
@@ -79,6 +83,14 @@ class Property:
 class Class:
     name: str
     members: Dict[str, Union[Function, Property]]
+    namespace: str
+    header: str
+
+
+@dataclass
+class Enum:
+    name: str
+    values: Dict[str, int]
     namespace: str
     header: str
 
@@ -117,104 +129,6 @@ def escape_cs_func_name(name):
     return name if name not in CS_KEYWORDS else f"@{name}"
 
 
-def parse_headers(code):
-    lines = code.splitlines()
-    count = 0
-    namespace = None
-    header = None
-    for no, line in enumerate(lines):
-        line = line.strip()
-        if line.startswith("\ufeff//"):
-            continue
-        elif line.startswith("//"):
-            continue
-        elif line.startswith("["):
-            continue
-        elif line.startswith("using"):
-            continue
-        elif line == "{":
-            count += 1
-            if count == 2:
-                break
-        elif line.startswith("namespace"):
-            namespace = line.partition(" ")[-1]
-        else:
-            header = line
-    else:
-        assert False
-
-    return namespace, header, lines[no:]
-
-
-def parse_body(lines):
-    for line in lines:
-        line = line.strip()
-        anno = RE_ANNOTATION.match(line)
-        if anno:
-            continue
-
-        if "this[]" in line:
-            continue
-
-        m_func = RE_FUNCTION.match(line)
-        if m_func:
-            deco_map = {}
-
-            def register_deco(s: Match):
-                index = f"#{len(deco_map) + 1}"
-                deco_map[index] = s[1]
-                return index
-
-            args = RE_ANNOTATION_SINGLE.sub(register_deco, m_func[3])
-            args = args.split(",")
-            new_args = []
-            for arg in args:
-                arg = arg.strip()
-                if not arg:
-                    assert len(args) == 1
-                    break
-
-                tokens = arg.split()
-                assert len(tokens) >= 2, arg
-                default = None
-                if tokens[-2] == "=":
-                    default = tokens.pop()
-                    sep = tokens.pop()
-                    assert sep == "="
-
-                assert len(tokens) >= 2, arg
-                name = tokens.pop()
-                type = tokens.pop()
-                token = tokens.pop()
-                if token in deco_map:
-                    io_type, deco_index = None, token
-                else:
-                    io_type, deco_index = token, tokens.pop() if tokens else None
-
-                assert not tokens, (tokens, line)
-
-                deco = deco_map[deco_index] if deco_index is not None else None
-                arg = Argument(type, name, io_type, deco, default)
-
-                new_args.append(arg)
-
-            func = Function(m_func[1], m_func[2], tuple(new_args))
-            yield func
-
-        m_prop = RE_PROPERTY.match(line)
-        if m_prop:
-            new_accessor = set()
-            for accessor in m_prop[3].split(";"):
-                accessor = accessor.strip()
-                if not accessor:
-                    continue
-
-                accessor = accessor.rpartition(" ")[-1]
-                assert accessor in {"get", "set"}, repr(accessor)
-                new_accessor.add(accessor)
-
-            yield Property(m_prop[1], m_prop[2], new_accessor)
-
 CLASS_TREE = {
     "Application": "Application",
     "Workbooks": "Application",
@@ -225,143 +139,290 @@ CLASS_TREE = {
 }
 
 
-def patch_cls(cls: Class):
-    ws_type = "Worksheet"
+class Parser:
+    def __init__(self, name: str, finder: "ClassFinder"):
+        self.name = name
+        self.finder = finder
 
-    # noinspection PyUnusedLocal
-    func: Function
-    # noinspection PyUnusedLocal
-    prop: Property
+    def parse(self):
+        name = self.name
+        code = self.finder.read_code(self.name)
 
-    if cls.name in CLASS_TREE:
-        prop = cls.members["Parent"]
-        prop.type = CLASS_TREE[cls.name]
+        namespace, header, lines = self.parse_headers(code)
+        if "interface" in header:
+            members = {node.name: node for node in self.parse_class_body(lines)}
+            cls = Class(name, members, namespace, header)
+            cls = self.patch_cls(cls)
+            return cls
+        elif "enum" in header:
+            members = dict(self.parse_enum_body(lines))
+            enum = Enum(name, members, namespace, header)
+            return enum
+        else:
+            raise Exception(header)
 
-    if cls.name == "Application":
-        prop = cls.members["Selection"]
-        prop.type = "Range"
-    elif cls.name == "Sheets":
-        func = cls.members["get_Item"]
-        func.type = ws_type
-        for arg in func.args:
-            arg.default = arg.deco = None
-
-        func = cls.members["Add"]
-        func.args[0].type = func.args[1].type = ws_type
-        func.args[2].type = "int"
-
-        func = cls.members["Copy"]
-        func.args[0].type = func.args[1].type = ws_type
-
-        func = cls.members["Move"]
-        func.args[0].type = func.args[1].type = ws_type
-
-        func = cls.members["Select"]
-        func.args[0].type = ws_type
-    elif cls.name == "Range":
-        func = cls.members["get_Item"]
-        func.type = "Range"
-        func.args[0].type = func.args[1].type = "int"
-        for arg in func.args:
-            arg.default = arg.deco = None
-
-        func = cls.members["set_Item"]
-        func.args[0].type = func.args[1].type = "int"
-        func.args[2].type = "Range"
-        for arg in func.args:
-            arg.default = arg.deco = None
-
-        cls.members["Value"] = cls.members.pop("Value2")
-    elif cls.name == "DiagramNodeChildren":
-        func = cls.members["AddNode"]
-        func.args[0].type = "int"
-
-    if "get_Item" in cls.members:
-        func = cls.members["get_Item"]
-        if len(func.args) == 1:
-            arg = func.args[0]
-            if arg.name in {"Index", "Level"} and arg.type == "object":
-                func.args[0].type = "int"
-            elif arg.type == "int":
-                # does not require convert type
-                pass
+    @staticmethod
+    def parse_headers(code):
+        lines = code.splitlines()
+        count = 0
+        namespace = None
+        header = None
+        for no, line in enumerate(lines):
+            line = line.strip()
+            if line.startswith("\ufeff//"):
+                continue
+            elif line.startswith("//"):
+                continue
+            elif line.startswith("["):
+                continue
+            elif line.startswith("using"):
+                continue
+            elif line == "{":
+                count += 1
+                if count == 2:
+                    break
+            elif line.startswith("namespace"):
+                namespace = line.partition(" ")[-1]
             else:
-                assert True
+                header = line
+        else:
+            assert False
 
-    if "set_Item" in cls.members:
-        func = cls.members["set_Item"]
-        if len(func.args) == 2:
-            arg = func.args[0]
-            if arg.name in {"Index", "Level"} and arg.type == "object":
-                func.args[0].type = "int"
-                print(func)
-            elif arg.type == "int":
-                # does not require convert type
-                pass
-            else:
-                assert True
-                print(func)
+        return namespace, header, lines[no:]
 
-    for key, value in cls.members.items():
-        if isinstance(value, Function):
-            func: Function = value
-        elif isinstance(value, Property):
-            prop: Property = value
-            if prop.type in {"VBProject", "VBE"}:
-                prop.type = f"IVbe.{prop.type}"
-            elif prop.type == "object" and prop.name == "ActiveSheet":
-                prop.type = ws_type
+    @staticmethod
+    def parse_class_body(lines):
+        for line in lines:
+            line = line.strip()
+            anno = RE_ANNOTATION.match(line)
+            if anno:
+                continue
 
-    assert "Get" not in cls.members
-    assert "get" not in cls.members
-    if "get_Item" in cls.members:
-        cls.members["get"] = cls.members.pop("get_Item")
+            if "this[]" in line:
+                continue
 
-    assert "Set" not in cls.members
-    assert "set" not in cls.members
-    if "set_Item" in cls.members:
-        cls.members["set"] = cls.members.pop("set_Item")
+            m_func = RE_FUNCTION.match(line)
+            if m_func:
+                deco_map = {}
 
-    if "PresetCamera" in cls.members:
-        # ThreeDFormat
-        cls.members["PresetCamera_"] = cls.members.pop("PresetCamera")
+                def register_deco(s: Match):
+                    index = f"#{len(deco_map) + 1}"
+                    deco_map[index] = s[1]
+                    return index
 
-    members = {}
-    for key, value in dict(cls.members).items():
-        if key.startswith(("_", "Dummy")) or key == "this[]":
-            continue
+                args = RE_ANNOTATION_SINGLE.sub(register_deco, m_func[3])
+                args = args.split(",")
+                new_args = []
+                for arg in args:
+                    arg = arg.strip()
+                    if not arg:
+                        assert len(args) == 1
+                        break
 
-        members[camel_to_py_name(key, True)] = value
+                    tokens = arg.split()
+                    assert len(tokens) >= 2, arg
+                    default = None
+                    if tokens[-2] == "=":
+                        default = tokens.pop()
+                        sep = tokens.pop()
+                        assert sep == "="
 
-    cls.members = members
+                    assert len(tokens) >= 2, arg
+                    name = tokens.pop()
+                    type = tokens.pop()
+                    token = tokens.pop()
+                    if token in deco_map:
+                        io_type, deco_index = None, token
+                    else:
+                        io_type, deco_index = token, tokens.pop() if tokens else None
 
+                    assert not tokens, (tokens, line)
 
-    for func in (node for node in cls.members.values() if isinstance(node, Function)):
-        freeze_args = False
-        required_args = []
-        optinal_args = []
-        default_args = []
+                    deco = deco_map[deco_index] if deco_index is not None else None
+                    arg = Argument(type, name, io_type, deco, default)
 
-        for arg in func.args:
-            arg.name = camel_to_py_name(arg.name, False)
+                    new_args.append(arg)
 
-            assert arg is not None
-            optinal = get_optinal_type(arg)
-            if optinal is None:
-                assert not freeze_args
-                required_args.append(arg)
-            elif optinal is OptinalType.HasDefine:
-                freeze_args = True
-                optinal_args.append(arg)
-            elif optinal is OptinalType.HasDefault:
-                freeze_args = True
-                default_args.append(arg)
+                func = Function(m_func[1], m_func[2], tuple(new_args))
+                yield func
 
-        func.py_args = tuple(required_args + optinal_args + default_args)
+            m_prop = RE_PROPERTY.match(line)
+            if m_prop:
+                new_accessor = set()
+                for accessor in m_prop[3].split(";"):
+                    accessor = accessor.strip()
+                    if not accessor:
+                        continue
 
+                    accessor = accessor.rpartition(" ")[-1]
+                    assert accessor in {"get", "set"}, repr(accessor)
+                    new_accessor.add(accessor)
 
+                yield Property(m_prop[1], m_prop[2], new_accessor)
 
-    return cls
+    @staticmethod
+    def parse_enum_body(lines):
+        num = 0
+        for line in lines:
+            line = line.strip()
+            anno = RE_ANNOTATION.match(line)
+            if anno:
+                continue
+
+            if RE_BRAKET.match(line):
+                continue
+
+            line, sep, comment = line.partition("//")
+            line = line.strip()
+            if not line.endswith(","):
+                print(repr(line))
+                continue
+
+            line = line.rstrip(",")
+            key, sep, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if value:
+                num = int(value)
+
+            yield key, num
+            num += 1
+
+    @staticmethod
+    def patch_cls(cls: Class):
+        ws_type = "Worksheet"
+
+        # noinspection PyUnusedLocal
+        func: Function
+        # noinspection PyUnusedLocal
+        prop: Property
+
+        if cls.name in CLASS_TREE:
+            prop = cls.members["Parent"]
+            prop.type = CLASS_TREE[cls.name]
+
+        if cls.name == "Application":
+            prop = cls.members["Selection"]
+            prop.type = "Range"
+        elif cls.name == "Sheets":
+            func = cls.members["get_Item"]
+            func.type = ws_type
+            for arg in func.args:
+                arg.default = arg.deco = None
+
+            func = cls.members["Add"]
+            func.args[0].type = func.args[1].type = ws_type
+            func.args[2].type = "int"
+
+            func = cls.members["Copy"]
+            func.args[0].type = func.args[1].type = ws_type
+
+            func = cls.members["Move"]
+            func.args[0].type = func.args[1].type = ws_type
+
+            func = cls.members["Select"]
+            func.args[0].type = ws_type
+        elif cls.name == "Range":
+            func = cls.members["get_Item"]
+            func.type = "Range"
+            func.args[0].type = func.args[1].type = "int"
+            for arg in func.args:
+                arg.default = arg.deco = None
+
+            func = cls.members["set_Item"]
+            func.args[0].type = func.args[1].type = "int"
+            func.args[2].type = "Range"
+            for arg in func.args:
+                arg.default = arg.deco = None
+
+            cls.members["Value"] = cls.members.pop("Value2")
+        elif cls.name == "DiagramNodeChildren":
+            func = cls.members["AddNode"]
+            func.args[0].type = "int"
+
+        if "get_Item" in cls.members:
+            func = cls.members["get_Item"]
+            if len(func.args) == 1:
+                arg = func.args[0]
+                if arg.name in {"Index", "Level"} and arg.type == "object":
+                    func.args[0].type = "int"
+                elif arg.type == "int":
+                    # does not require convert type
+                    pass
+                else:
+                    assert True
+
+        if "set_Item" in cls.members:
+            func = cls.members["set_Item"]
+            if len(func.args) == 2:
+                arg = func.args[0]
+                if arg.name in {"Index", "Level"} and arg.type == "object":
+                    func.args[0].type = "int"
+                    print(func)
+                elif arg.type == "int":
+                    # does not require convert type
+                    pass
+                else:
+                    assert True
+                    print(func)
+
+        for key, value in cls.members.items():
+            if isinstance(value, Function):
+                func: Function = value
+            elif isinstance(value, Property):
+                prop: Property = value
+                if prop.type in {"VBProject", "VBE"}:
+                    prop.type = f"IVbe.{prop.type}"
+                elif prop.type == "object" and prop.name == "ActiveSheet":
+                    prop.type = ws_type
+
+        assert "Get" not in cls.members
+        assert "get" not in cls.members
+        if "get_Item" in cls.members:
+            cls.members["get"] = cls.members.pop("get_Item")
+
+        assert "Set" not in cls.members
+        assert "set" not in cls.members
+        if "set_Item" in cls.members:
+            cls.members["set"] = cls.members.pop("set_Item")
+
+        if "PresetCamera" in cls.members:
+            # ThreeDFormat
+            cls.members["PresetCamera_"] = cls.members.pop("PresetCamera")
+
+        members = {}
+        for key, value in dict(cls.members).items():
+            if key.startswith(("_", "Dummy")) or key == "this[]":
+                continue
+
+            members[camel_to_py_name(key, True)] = value
+
+        cls.members = members
+
+        for func in (node for node in cls.members.values() if isinstance(node, Function)):
+            freeze_args = False
+            required_args = []
+            optinal_args = []
+            default_args = []
+
+            for arg in func.args:
+                arg.name = camel_to_py_name(arg.name, False)
+
+                assert arg is not None
+                optinal = get_optinal_type(arg)
+                if optinal is None:
+                    assert not freeze_args
+                    required_args.append(arg)
+                elif optinal is OptinalType.HasDefine:
+                    freeze_args = True
+                    optinal_args.append(arg)
+                elif optinal is OptinalType.HasDefault:
+                    freeze_args = True
+                    default_args.append(arg)
+
+            func.py_args = tuple(required_args + optinal_args + default_args)
+
+        return cls
 
 
 class ClassFinder:
@@ -373,12 +434,7 @@ class ClassFinder:
         if not self.has(name):
             raise FileNotFoundError(str(self.find(name)))
 
-        code = self.read_code(name)
-        namespace, header, lines = parse_headers(code)
-        members = {node.name: node for node in parse_body(lines)}
-        cls = Class(name, members, namespace, header)
-        cls = patch_cls(cls)
-        return cls
+        return Parser(name, self).parse()
 
     @lru_cache()
     def find(self, name):
@@ -401,6 +457,8 @@ class Resolver:
         self.finder = finder
         self.parsed = set()
         self.ignored = set()
+        self.classes = set()
+        self.enums = set()
 
     def load(self, cls_name):
         return self.finder.load(cls_name)
@@ -420,21 +478,67 @@ class Resolver:
             return
 
         # print(cls_name)
-        cls = self.finder.load(cls_name)
-        if not ("class" in cls.header or "interface" in cls.header):
+        obj = self.finder.load(cls_name)
+        if not ("class" in obj.header or "interface" in obj.header or "enum" in obj.header):
             self.parsed.remove(cls_name)
             self.ignored.add(cls_name)
             return
 
-        for name, value in cls.members.items():
-            if isinstance(value, Function):
-                func: Function = value
-                self.resolve(func.type)
-                for arg in func.args:
-                    self.resolve(arg.type)
-            elif isinstance(value, Property):
-                prop: Property = value
-                self.resolve(prop.type)
+        if isinstance(obj, Class):
+            self.classes.add(cls_name)
+            for name, value in obj.members.items():
+                if isinstance(value, Function):
+                    func: Function = value
+                    self.resolve(func.type)
+                    for arg in func.args:
+                        self.resolve(arg.type)
+                elif isinstance(value, Property):
+                    prop: Property = value
+                    self.resolve(prop.type)
+        elif isinstance(obj, Enum):
+            self.enums.add(cls_name)
+        else:
+            raise Exception
+
+
+class Buffer(io.StringIO):
+    def __init__(self):
+        super().__init__()
+        self.indent = 0
+
+    def write2(self, *args, sep=" ", end="\n"):
+        # noinspection PyTypeChecker
+        print(*args, sep=sep, end=end, file=self)
+
+    def write_indent(self):
+        # noinspection PyTypeChecker
+        print("    " * self.indent, end="", file=self)
+
+    # from pyi
+    def write_start(self, *args, sep=" ", end="\n", indent_offset=0):
+        self.indent += indent_offset
+        self.write_indent()
+        self.write2(*args, sep=sep, end=end)
+
+    # from gen_cs
+    def write_line(self, *args, sep=" ", end="\n"):
+        self.write_indent()
+        self.write2(*args, sep=sep, end=end)
+
+    @contextmanager
+    def gen_block(self):
+        self.write_line("{")
+        with self.with_indent():
+            yield
+        self.write_line("}")
+
+    @contextmanager
+    def with_indent(self):
+        self.indent += 1
+        try:
+            yield
+        finally:
+            self.indent -= 1
 
 
 class CsCompiler:
@@ -445,16 +549,8 @@ class CsCompiler:
     def finder(self):
         return self.resolver.finder
 
-    def redirect_input_type(self, type):
-        # TODO: alloweed type?
-
-        if type in self.resolver.parsed:
-            return f"Excel.{type}"
-
-        return type
-
     def required_warp(self, type):
-        return type in self.resolver.parsed
+        return type in self.resolver.classes
 
     TYPES_CS2PY_MAP = {
         "object": "object",
@@ -467,66 +563,62 @@ class CsCompiler:
     }
 
     def type_cs_to_py(self, type):
-        return self.TYPES_CS2PY_MAP.get(type, f"{type}Type" if type in self.resolver.parsed else None)
+        py_type = self.TYPES_CS2PY_MAP.get(type)
+        if py_type is not None:
+            return py_type
+
+        if type in self.resolver.classes:
+            return f"{type}Type"
+
+        if type in self.resolver.enums:
+            return str(type)
+
+        return None
+
+    def build_py_enum(self, enum: Enum):
+        self.resolver.resolve(enum.name)
+
+        buffer = Buffer()
+        write_indent = buffer.write_indent
+        write_line = buffer.write_line
+        write = buffer.write2
+        write_start = buffer.write_start
+
+        # declear enum
+        write()
+        write_start(f"class {enum.name}(IntEnum):")
+        with buffer.with_indent():
+            assert enum.values
+
+            for key, value in enum.values.items():
+                write_line(key, "=", value)
+
+            write()
+
+        return buffer.getvalue()
 
     def build_pyi(self, cls: Class):
         self.resolver.resolve(cls.name)
-        fp = io.StringIO()  # type: Union[io.StringIO, IO[str]]
 
-        indent = 0
-
-        def write_indent():
-            print("    " * indent, end="", file=fp)
-
-        def write(*args, sep=" ", end="\n"):
-            print(*args, sep=sep, end=end, file=fp)
-
-        def write_start(*args, sep=" ", end="\n", indent_offset=0):
-            nonlocal indent
-            indent += indent_offset
-            write_indent()
-            write(*args, sep=sep, end=end)
+        buffer = Buffer()
+        write_indent = buffer.write_indent
+        write_line = buffer.write_line
+        write = buffer.write2
+        write_start = buffer.write_start
 
         # declear class
         write_start(f"class {cls.name}:")
-        indent += 1
+        with buffer.with_indent():
+            if not cls.members:
+                write_start("pass")
+                write()
 
-        if not cls.members:
-            write_start("pass")
-            write()
-
-        get_func = cls.members.get("get")
-        if get_func:
-            write()
-            write_indent()
-            write(f"def __iter__(self", end="")
-            for no, arg in enumerate(get_func.args):
-                write(", ", end="")
-
-                py_type = self.type_cs_to_py(arg.type)
-                if py_type:
-                    write(f'{arg.name}: {py_type}', end="")
-                else:
-                    write(f'{arg.name}', end="")
-
-            write(")", end="")
-
-            func_py_type = self.type_cs_to_py(get_func.type)
-            if func_py_type:
-                write(f" -> Iterable[{func_py_type}]", end="")
-
-            write(": pass")
-            write()
-
-        for alias_name, node in cls.members.items():
-            if isinstance(node, Function):
-                func: Function = node
-
-                # function prototype
+            get_func = cls.members.get("get")
+            if get_func:
                 write()
                 write_indent()
-                write(f"def {alias_name}(self", end="")
-                for no, arg in enumerate(func.args):
+                write(f"def __iter__(self", end="")
+                for no, arg in enumerate(get_func.args):
                     write(", ", end="")
 
                     py_type = self.type_cs_to_py(arg.type)
@@ -535,68 +627,78 @@ class CsCompiler:
                     else:
                         write(f'{arg.name}', end="")
 
-                    has_optional = get_optinal_type(arg) is not None
-                    if has_optional:
-                        write(" = None", end="")
-
                 write(")", end="")
 
-                func_py_type = self.type_cs_to_py(func.type)
+                func_py_type = self.type_cs_to_py(get_func.type)
                 if func_py_type:
-                    write(f" -> {func_py_type}", end="")
+                    write(f" -> Iterable[{func_py_type}]", end="")
 
                 write(": pass")
                 write()
-            elif isinstance(node, Property):
-                prop: Property = node
 
-                write_indent()
-                py_type = self.type_cs_to_py(prop.type)
-                if py_type:
-                    write(f'{alias_name}: {py_type}', end="")
-                else:
-                    write(f'{alias_name}: None', end="")
+            for alias_name, node in cls.members.items():
+                if isinstance(node, Function):
+                    func: Function = node
 
-                write()
+                    # function prototype
+                    write()
+                    write_indent()
+                    write(f"def {alias_name}(self", end="")
+                    for no, arg in enumerate(func.args):
+                        write(", ", end="")
 
-        indent -= 1
+                        py_type = self.type_cs_to_py(arg.type)
+                        if py_type:
+                            write(f'{arg.name}: {py_type}', end="")
+                        else:
+                            write(f'{arg.name}', end="")
+
+                        has_optional = get_optinal_type(arg) is not None
+                        if has_optional:
+                            write(" = None", end="")
+
+                    write(")", end="")
+
+                    func_py_type = self.type_cs_to_py(func.type)
+                    if func_py_type:
+                        write(f" -> {func_py_type}", end="")
+
+                    write(": pass")
+                    write()
+                elif isinstance(node, Property):
+                    prop: Property = node
+
+                    write_indent()
+                    py_type = self.type_cs_to_py(prop.type)
+                    if py_type:
+                        write(f'{alias_name}: {py_type}', end="")
+                    else:
+                        write(f'{alias_name}: None', end="")
+
+                    write()
+
         write(f"{cls.name}Type = {cls.name}")
         write()
         write()
 
-        return fp.getvalue()
+        return buffer.getvalue()
 
     def build_cs_class(self, cls: Class, obj_name):
         self.resolver.resolve(cls.name)
-        required_warp = self.required_warp
-        fp = io.StringIO()  # type: Union[io.StringIO, IO[str]]
 
-        indent = 0
+        buffer = Buffer()
+        write_indent = buffer.write_indent
+        write_line = buffer.write_line
+        write = buffer.write2
+        gen_block = buffer.gen_block
 
-        def write_indent():
-            print("    " * indent, end="", file=fp)
+        def redirect_type(type):
+            if type in self.resolver.classes:
+                return type
+            elif type in self.resolver.enums:
+                return f"IExcel.{type}"
 
-        def write(*args, sep=" ", end="\n"):
-            print(*args, sep=sep, end=end, file=fp)
-
-        def write_line(*args, sep=" ", end="\n"):
-            write_indent()
-            write(*args, sep=sep, end=end)
-
-        @contextmanager
-        def gen_block():
-            nonlocal indent
-            write_line("{")
-            indent += 1
-            try:
-                yield
-            finally:
-                indent -= 1
-
-            write_line("}")
-
-        def redirect_enum_type(type):
-            return type if type not in self.resolver.ignored else f"IExcel.{type}"
+            return type
 
         write(f'// Auto-generated "{cls.name}.cs" by fastexcel.gen_cs v1.1')
         write()
@@ -612,7 +714,6 @@ class CsCompiler:
         write("using IExcel = Microsoft.Office.Interop.Excel;")
         write("using IVbe = Microsoft.Vbe.Interop;")
         write()
-
 
         namespace = "PyExcelLibrary"
         write(f"namespace {namespace}")
@@ -635,7 +736,6 @@ class CsCompiler:
                 write(f", IEnumerable<{get_func.type}>")
             else:
                 write()
-
 
             with gen_block():
                 if True:
@@ -671,7 +771,7 @@ class CsCompiler:
 
                         alias_name = escape_cs_func_name(alias_name)
 
-                        func.type = redirect_enum_type(func.type)
+                        func.type = redirect_type(func.type)
 
                         # function prototype
                         write()
@@ -686,7 +786,7 @@ class CsCompiler:
                             if optional == OptinalType.HasDefine:
                                 write("[Optional] ", end="")
 
-                            arg_type = redirect_enum_type(arg.type)
+                            arg_type = redirect_type(arg.type)
                             write(f'{arg_type} {arg.name}', end="")
 
                             if optional == OptinalType.HasDefault:
@@ -738,7 +838,7 @@ class CsCompiler:
                             read_obj = f"new {prop.type}({read_obj})"
                             write_obj = f"{write_obj}.obj"
 
-                        prop.type = redirect_enum_type(prop.type)
+                        prop.type = redirect_type(prop.type)
                         prop_name = alias_name
                         if prop_name == cls.name:
                             prop_name = f"{prop_name}_"
@@ -757,7 +857,7 @@ class CsCompiler:
                                     write_indent()
                                     write(f"set => {write_obj};")
 
-        return fp.getvalue()
+        return buffer.getvalue()
 
 
 def main():
@@ -768,22 +868,39 @@ def main():
 
     compiler = CsCompiler(resolver)
 
+    with (Path(__file__).parent / "../execlib/enums.py").open("w", encoding="utf-8") as out:
+        out.write("from enum import IntEnum\n")
+        out.write("\n")
+        out.write("__all__ = " + repr([clsname for clsname in sorted(resolver.enums)]) + "\n")
+        out.write("\n")
+        for clsname in resolver.enums:
+            obj = finder.load(clsname)
+            assert isinstance(obj, Enum)
+            out.write(compiler.build_py_enum(obj))
+
     with (Path(__file__).parent / "../execlib/PyExcelLibrary.pyi").open("w", encoding="utf-8") as out:
         out.write("from typing import *\n")
+        out.write("from .enums import *\n")
         out.write("\n")
-        out.write("__all__ = " + repr([clsname for clsname in sorted(resolver.parsed)]) + "\n")
+        out.write("__all__ = " + repr([clsname for clsname in sorted(resolver.classes)]) + "\n")
         out.write("\n")
-        for clsname in resolver.parsed:
-            out.write(compiler.build_pyi(finder.load(clsname)))
+        for clsname in resolver.classes:
+            cls = finder.load(clsname)
+            assert isinstance(cls, Class)
+            out.write(compiler.build_pyi(cls))
 
     OUTPUT_PATH = Path("PyExcelLibrary/excel")
     for file in OUTPUT_PATH.glob("*.cs"):
         file.unlink()
 
-    for clsname in resolver.parsed:
+    for clsname in resolver.classes:
+        obj = finder.load(clsname)
+        assert isinstance(obj, Class)
         with (OUTPUT_PATH / (clsname + ".cs")).open("w", encoding="utf-8") as out:
-            out.write(compiler.build_cs_class(finder.load(clsname), "obj"))
+            out.write(compiler.build_cs_class(obj, "obj"))
 
+
+# TODO: add support enum?
 
 if __name__ == '__main__':
     main()
